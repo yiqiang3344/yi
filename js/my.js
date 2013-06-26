@@ -1,39 +1,39 @@
 var EventUtil = {
-    addHandler:function(element, type, handler){
-        if(element.addEventListener){
+    addHandler: function(element, type, handler) {
+        if (element.addEventListener) {
             element.addEventListener(type, handler, false);
-        }else if(element.attachEvent){
-            element.attachEvent('on'+type, handler);
-        }else{
-            element['on'+type] = handler;
+        } else if (element.attachEvent) {
+            element.attachEvent('on' + type, handler);
+        } else {
+            element['on' + type] = handler;
         }
     },
-    removeHandler:function(element, type, handler){
-        if(element.removeEventListener){
-           element.removeEventListener(type, handler, false);
-        }else if(element.datachEvent){
-            element.datachEvent('on'+type, handler);
-        }else{
-            element['on'+type] = null;
+    removeHandler: function(element, type, handler) {
+        if (element.removeEventListener) {
+            element.removeEventListener(type, handler, false);
+        } else if (element.datachEvent) {
+            element.datachEvent('on' + type, handler);
+        } else {
+            element['on' + type] = null;
         }
     },
-    getEvent:function(event){
-        return event?event:window.event;
+    getEvent: function(event) {
+        return event ? event : window.event;
     },
-    getTarget:function(event){
+    getTarget: function(event) {
         return event.target || event.srcElement;
     },
-    preventDefault:function(event){
-        if(event.preventDefault){
+    preventDefault: function(event) {
+        if (event.preventDefault) {
             event.preventDefault();
-        }else{
+        } else {
             event.returnValue = false;
         }
     },
-    stopPropagation:function(){
-        if(event.stopPropagation){
+    stopPropagation: function() {
+        if (event.stopPropagation) {
             event.stopPropagation();
-        }else{
+        } else {
             event.cancelBubble = true;
         }
     }
