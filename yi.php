@@ -31,7 +31,7 @@
 
 	$path = explode('/', strtolower($_SERVER['PATH_INFO']));//路径全小写处理
 
-	if(isset($path[1])){
+	if(isset($path[1]) && !empty($path[1])){//防止多余/时报错
 		require(YROOT.'/controller/'.$path[1].'Controller.php');
 		$C_name = ucwords($path[1]).'Controller';
 		$C = new $C_name;//首字母大写
@@ -40,7 +40,7 @@
 		$C = new MainController;
 	}
 
-	if(isset($path[2])){
+	if(isset($path[2]) && !empty($path[2])){
 		$C->{'action'.ucwords($path[2])}();//方法首字母都要大写
 	}else{
 		$C->actionIndex();
