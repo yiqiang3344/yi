@@ -4,6 +4,7 @@
 	* @author sidneyYi
 	*/
 	define('YROOT',getcwd());
+	define('YDEBUG',true);
 
 	//预加载 components 中的文件
 	$componentsDir = YROOT.'/components/';
