@@ -1,7 +1,8 @@
 <?php
 class MainController extends Controller{
     public function actionMain(){
-        $info = 'test';
+        $info = MUser::getBlog();
+        print_r($info);
         //end
         $view = 'main';
         $bind = array();
@@ -9,8 +10,9 @@ class MainController extends Controller{
         $this->render($view,$bind);
     }
 
-    public function actionTest(){
-        $info = 'test1';
+    public function actionAddBlog(){
+        MUser::addBlog();
+        $info = '添加成功';
         //end
         $view = 'main';
         $bind = array();

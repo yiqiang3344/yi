@@ -2,6 +2,15 @@
 class Controller{
     public $layout = 'main';
 
+    public function __construct(){
+        $this->init();
+    }
+
+    public function init(){
+        YDatabase::set_db();
+    }
+
+
     public function getControllerName(){
 		$arr = explode('Controller',get_class($this));
 		return strtolower($arr[0]);

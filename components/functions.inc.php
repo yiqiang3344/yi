@@ -1,4 +1,8 @@
 <?php
-function Yerror($m){
-	die($m);
+function yDie($m=''){
+	if(YDEBUG){
+		throw new Exception($m);
+	}else{
+		die($m);
+	}
 }

@@ -1,30 +1,30 @@
 <?php
 class YDatabase{
-	private static $dba;
-	private static $dba_all;
+	private static $dbh;
+	private static $dbah;
 	public static function set_db(){
-		if(!self::$dba){
-			self::$dba=YDatabaseAccess::create(array(
+		if(!self::$dbh){
+			self::$dbh=YDatabaseAccess::create(array(
 				'connectionString' => 'mysql:host=' . MYSQL_SERVER . ';port=' . MYSQL_SERVER_PORT . ';dbname=' . MYSQL_DATABASE . ';charset=utf8',
 				'username' => MYSQL_USERNAME,
 				'password' => MYSQL_PASSWORD,
 			),true);
 		}else{//程序中不能设定两次
-			app_die();
+			yDie();
 		}
 	}
-	public static function select_dba(){
-		return self::$dba;
+	public static function get_dbh(){
+		return self::$dbh;
 	}
-	public static function select_dba_all(){
-		if(!self::$dba_all){
-			self::$dba_all=YDatabaseAccess::create(array(
+	public static function get_dbah(){
+		if(!self::$dbah){
+			self::$dbah=YDatabaseAccess::create(array(
 				'connectionString' => 'mysql:host=' . MYSQL_SERVER . ';port=' . MYSQL_SERVER_PORT . ';charset=utf8',
 				'username' => MYSQL_USERNAME,
 				'password' => MYSQL_PASSWORD,
 			),true);
 		}
-		return self::$dba_all;
+		return self::$dbah;
 	}
 }
 
@@ -35,15 +35,12 @@ final class YDatabaseAccess{
 		$this->connection=$connection;
 	}
 	public static function create($param){
-		$connection=new CDbConnection($param["connectionString"],$param["username"],$param["password"]);
-		$connection->schemaCachingDuration=0;
-		$connection->emulatePrepare=true;
-		$connection->active=true;
+		$connection=new YDbConnection($param["connectionString"],$param["username"],$param["password"]);
 		return new YDatabaseAccess($connection);
 	}
 	public function execute($sql,$params=array()){
 		if(YDEBUG && !$this->transaction){
-			app_die();
+			yDie();
 		}
 		return 	$this->connection->createCommand($sql)->execute($params);
 	}
@@ -60,18 +57,18 @@ final class YDatabaseAccess{
 		return 	$this->connection->createCommand($sql)->queryScalar($params);
 	}
 	public function last_insert_id(){
-		return $this->connection->getLastInsertID ();
+		return $this->connection->getLastInsertID();
 	}	
 	public function begin(){
 		if($this->transaction){
-			app_die();
+			yDie();
 		}
 		$this->transaction=$this->connection->beginTransaction();
 		return true;
 	}
 	public function commit(){
 		if(!$this->transaction){
-			app_die();
+			yDie();
 		}
 		$this->transaction->commit();
 		$this->transaction=null;
@@ -79,7 +76,7 @@ final class YDatabaseAccess{
 	}
 	public function rollback(){
 		if(!$this->transaction){
-			app_die();
+			yDie();
 		}
 		$this->transaction->rollBack();
 		$this->transaction=null;
@@ -88,5 +85,456 @@ final class YDatabaseAccess{
 	
 	public function checkTransaction(){
 		return $this->transaction?true:false;
+	}
+}
+
+final class YDbConnection
+{
+	public $connectionString;
+	public $username='';
+	public $password='';
+	// public $queryCachingDuration=0;
+	// public $queryCachingDependency;
+	// public $queryCachingCount=0;
+	// public $queryCacheID='cache';
+	public $autoConnect=true;
+	public $charset;
+	public $emulatePrepare=true;
+	public $enableParamLogging=false;
+	public $tablePrefix;
+	public $initSQLs;
+	public $driverMap=array(
+		'pgsql'=>'CPgsqlSchema',    // PostgreSQL
+		'mysqli'=>'CMysqlSchema',   // MySQL
+		'mysql'=>'CMysqlSchema',    // MySQL
+		'sqlite'=>'CSqliteSchema',  // sqlite 3
+		'sqlite2'=>'CSqliteSchema', // sqlite 2
+		'mssql'=>'CMssqlSchema',    // Mssql driver on windows hosts
+		'dblib'=>'CMssqlSchema',    // dblib drivers on linux (and maybe others os) hosts
+		'sqlsrv'=>'CMssqlSchema',   // Mssql
+		'oci'=>'COciSchema',        // Oracle driver
+	);
+	public $pdoClass = 'PDO';
+	private $_attributes=array();
+	private $_active=false;
+	private $_pdo;
+	private $_transaction;
+	public function __construct($dsn='',$username='',$password='')
+	{
+		$this->connectionString=$dsn;
+		$this->username=$username;
+		$this->password=$password;
+	}
+	public function __sleep()
+	{
+		$this->close();
+		return array_keys(get_object_vars($this));
+	}
+	public static function getAvailableDrivers()
+	{
+		return PDO::getAvailableDrivers();
+	}
+	public function init()
+	{
+		if($this->autoConnect)
+			$this->setActive(true);
+	}
+	// public function cache($duration, $dependency=null, $queryCount=1)
+	// {
+	// 	$this->queryCachingDuration=$duration;
+	// 	$this->queryCachingDependency=$dependency;
+	// 	$this->queryCachingCount=$queryCount;
+	// 	return $this;
+	// }
+	public function getActive()
+	{
+		return $this->_active;
+	}
+	public function setActive($value)
+	{
+		if($value!=$this->_active)
+		{
+			if($value)
+				$this->open();
+			else
+				$this->close();
+		}
+	}
+	protected function open()
+	{
+		if($this->_pdo===null)
+		{
+			if(empty($this->connectionString))
+				throw new YDbException('YDbConnection.connectionString cannot be empty.');
+			try
+			{
+				$this->_pdo=$this->createPdoInstance();
+				$this->initConnection($this->_pdo);
+				$this->_active=true;
+			}
+			catch(PDOException $e)
+			{
+				if(YDEBUG)
+				{
+					throw new YDbException('YDbConnection failed to open the DB connection: '.
+						$e->getMessage(),(int)$e->getCode(),$e->errorInfo);
+				}
+				else
+				{
+					throw new YDbException('YDbConnection failed to open the DB connection.',(int)$e->getCode(),$e->errorInfo);
+				}
+			}
+		}
+	}
+	protected function close()
+	{
+		$this->_pdo=null;
+		$this->_active=false;
+	}
+	protected function createPdoInstance()
+	{
+		$pdoClass=$this->pdoClass;
+		if(($pos=strpos($this->connectionString,':'))!==false)
+		{
+			$driver=strtolower(substr($this->connectionString,0,$pos));
+			if($driver==='mssql' || $driver==='dblib')
+				$pdoClass='CMssqlPdoAdapter';
+			elseif($driver==='sqlsrv')
+				$pdoClass='CMssqlSqlsrvPdoAdapter';
+		}
+		return new $pdoClass($this->connectionString,$this->username,
+									$this->password,$this->_attributes);
+	}
+	protected function initConnection($pdo)
+	{
+		$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+		if($this->emulatePrepare!==null && constant('PDO::ATTR_EMULATE_PREPARES'))
+			$pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES,$this->emulatePrepare);
+		if($this->charset!==null)
+		{
+			$driver=strtolower($pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
+			if(in_array($driver,array('pgsql','mysql','mysqli')))
+				$pdo->exec('SET NAMES '.$pdo->quote($this->charset));
+		}
+		if($this->initSQLs!==null)
+		{
+			foreach($this->initSQLs as $sql)
+				$pdo->exec($sql);
+		}
+	}
+	public function getPdoInstance()
+	{
+		return $this->_pdo;
+	}
+	public function createCommand($query=null)
+	{
+		$this->setActive(true);
+		return new YDbCommand($this,$query);
+	}
+	public function getCurrentTransaction()
+	{
+		if($this->_transaction!==null)
+		{
+			if($this->_transaction->getActive())
+				return $this->_transaction;
+		}
+		return null;
+	}
+	public function beginTransaction()
+	{
+		$this->setActive(true);
+		return $this->_pdo->beginTransaction();
+	}
+	public function getLastInsertID($sequenceName='')
+	{
+		$this->setActive(true);
+		return $this->_pdo->lastInsertId($sequenceName);
+	}
+	public function quoteValue($str)
+	{
+		if(is_int($str) || is_float($str))
+			return $str;
+		$this->setActive(true);
+		if(($value=$this->_pdo->quote($str))!==false)
+			return $value;
+		else  // the driver doesn't support quote (e.g. oci)
+			return "'" . addcslashes(str_replace("'", "''", $str), "\000\n\r\\\032") . "'";
+	}
+	public function getPdoType($type)
+	{
+		static $map=array
+		(
+			'boolean'=>PDO::PARAM_BOOL,
+			'integer'=>PDO::PARAM_INT,
+			'string'=>PDO::PARAM_STR,
+			'resource'=>PDO::PARAM_LOB,
+			'NULL'=>PDO::PARAM_NULL,
+		);
+		return isset($map[$type]) ? $map[$type] : PDO::PARAM_STR;
+	}
+	public function getDriverName()
+	{
+		if(($pos=strpos($this->connectionString, ':'))!==false)
+			return strtolower(substr($this->connectionString, 0, $pos));
+	}
+	public function getAttribute($name)
+	{
+		$this->setActive(true);
+		return $this->_pdo->getAttribute($name);
+	}
+	public function setAttribute($name,$value)
+	{
+		if($this->_pdo instanceof PDO)
+			$this->_pdo->setAttribute($name,$value);
+		else
+			$this->_attributes[$name]=$value;
+	}
+	public function getAttributes()
+	{
+		return $this->_attributes;
+	}
+	public function setAttributes($values)
+	{
+		foreach($values as $name=>$value)
+			$this->_attributes[$name]=$value;
+	}
+}
+class YDbCommand
+{
+	public $params=array();
+	private $_connection;
+	private $_text;
+	private $_statement;
+	private $_paramLog=array();
+	private $_fetchMode = array(PDO::FETCH_ASSOC);
+	public function __construct(YDbConnection $connection,$query=null)
+	{
+		$this->_connection=$connection;
+		if(is_array($query))
+		{
+			foreach($query as $name=>$value)
+				$this->$name=$value;
+		}
+		else
+			$this->setText($query);
+	}
+	public function __sleep()
+	{
+		$this->_statement=null;
+		return array_keys(get_object_vars($this));
+	}
+	public function setFetchMode($mode)
+	{
+		$params=func_get_args();
+		$this->_fetchMode = $params;
+		return $this;
+	}
+	public function reset()
+	{
+		$this->_text=null;
+		$this->_statement=null;
+		$this->_paramLog=array();
+		$this->params=array();
+		return $this;
+	}
+	public function getText()
+	{
+		return $this->_text;
+	}
+	public function setText($value)
+	{
+		if($this->_connection->tablePrefix!==null && $value!='')
+			$this->_text=preg_replace('/{{(.*?)}}/',$this->_connection->tablePrefix.'\1',$value);
+		else
+			$this->_text=$value;
+		$this->cancel();
+		return $this;
+	}
+	public function getConnection()
+	{
+		return $this->_connection;
+	}
+	public function getPdoStatement()
+	{
+		return $this->_statement;
+	}
+	public function prepare()
+	{
+		if($this->_statement==null)
+		{
+			try
+			{
+				$this->_statement=$this->getConnection()->getPdoInstance()->prepare($this->getText());
+				$this->_paramLog=array();
+			}
+			catch(Exception $e)
+			{
+				$errorInfo=$e instanceof PDOException ? $e->errorInfo : null;
+				throw new YDbException('YDbCommand failed to prepare the SQL statement: '.$e->getMessage(),(int)$e->getCode(),$errorInfo);
+			}
+		}
+	}
+	public function cancel()
+	{
+		$this->_statement=null;
+	}
+	public function bindParam($name, &$value, $dataType=null, $length=null, $driverOptions=null)
+	{
+		$this->prepare();
+		if($dataType===null)
+			$this->_statement->bindParam($name,$value,$this->_connection->getPdoType(gettype($value)));
+		elseif($length===null)
+			$this->_statement->bindParam($name,$value,$dataType);
+		elseif($driverOptions===null)
+			$this->_statement->bindParam($name,$value,$dataType,$length);
+		else
+			$this->_statement->bindParam($name,$value,$dataType,$length,$driverOptions);
+		$this->_paramLog[$name]=&$value;
+		return $this;
+	}
+	public function bindValue($name, $value, $dataType=null)
+	{
+		$this->prepare();
+		if($dataType===null)
+			$this->_statement->bindValue($name,$value,$this->_connection->getPdoType(gettype($value)));
+		else
+			$this->_statement->bindValue($name,$value,$dataType);
+		$this->_paramLog[$name]=$value;
+		return $this;
+	}
+	public function bindValues($values)
+	{
+		$this->prepare();
+		foreach($values as $name=>$value)
+		{
+			$this->_statement->bindValue($name,$value,$this->_connection->getPdoType(gettype($value)));
+			$this->_paramLog[$name]=$value;
+		}
+		return $this;
+	}
+	public function execute($params=array())
+	{
+		if($this->_connection->enableParamLogging && ($pars=array_merge($this->_paramLog,$params))!==array())
+		{
+			$p=array();
+			foreach($pars as $name=>$value)
+				$p[$name]=$name.'='.var_export($value,true);
+			$par='. Bound with ' .implode(', ',$p);
+		}
+		else
+			$par='';
+		try
+		{
+			$this->prepare();
+			if($params===array())
+				$this->_statement->execute();
+			else
+				$this->_statement->execute($params);
+			$n=$this->_statement->rowCount();
+			return $n;
+		}
+		catch(Exception $e)
+		{
+			$errorInfo=$e instanceof PDOException ? $e->errorInfo : null;
+			$message=$e->getMessage();
+			if(YDEBUG)
+				$message.='. The SQL statement executed was: '.$this->getText().$par;
+			throw new YDbException('YDbCommand failed to execute the SQL statement:'.$message,(int)$e->getCode(),$errorInfo);
+		}
+	}
+	public function query($params=array())
+	{
+		return $this->queryInternal('',0,$params);
+	}
+	public function queryAll($fetchAssociative=true,$params=array())
+	{
+		return $this->queryInternal('fetchAll',$fetchAssociative ? $this->_fetchMode : PDO::FETCH_NUM, $params);
+	}
+	public function queryRow($fetchAssociative=true,$params=array())
+	{
+		return $this->queryInternal('fetch',$fetchAssociative ? $this->_fetchMode : PDO::FETCH_NUM, $params);
+	}
+	public function queryScalar($params=array())
+	{
+		$result=$this->queryInternal('fetchColumn',0,$params);
+		if(is_resource($result) && get_resource_type($result)==='stream')
+			return stream_get_contents($result);
+		else
+			return $result;
+	}
+	public function queryColumn($params=array())
+	{
+		return $this->queryInternal('fetchAll',array(PDO::FETCH_COLUMN, 0),$params);
+	}
+	private function queryInternal($method,$mode,$params=array())
+	{
+		$params=array_merge($this->params,$params);
+		if($this->_connection->enableParamLogging && ($pars=array_merge($this->_paramLog,$params))!==array())
+		{
+			$p=array();
+			foreach($pars as $name=>$value)
+				$p[$name]=$name.'='.var_export($value,true);
+			$par='. Bound with '.implode(', ',$p);
+		}
+		else
+			$par='';
+		// if($this->_connection->queryCachingCount>0 && $method!==''
+		// 		&& $this->_connection->queryCachingDuration>0
+		// 		&& $this->_connection->queryCacheID!==false
+		// 		&& ($cache=Yii::app()->getComponent($this->_connection->queryCacheID))!==null)
+		// {
+		// 	$this->_connection->queryCachingCount--;
+		// 	$cacheKey='yi:dbquery'.$this->_connection->connectionString.':'.$this->_connection->username;
+		// 	$cacheKey.=':'.$this->getText().':'.serialize(array_merge($this->_paramLog,$params));
+		// 	if(($result=$cache->get($cacheKey))!==false)
+		// 	{
+		// 		return $result[0];
+		// 	}
+		// }
+		try
+		{
+			$this->prepare();
+			if($params===array())
+				$this->_statement->execute();
+			else
+				$this->_statement->execute($params);
+			$mode=(array)$mode;
+			call_user_func_array(array($this->_statement, 'setFetchMode'), $mode);
+			$result=$this->_statement->$method();
+			$this->_statement->closeCursor();
+			// if(isset($cache,$cacheKey))
+			// 	$cache->set($cacheKey, array($result), $this->_connection->queryCachingDuration, $this->_connection->queryCachingDependency);
+			return $result;
+		}
+		catch(Exception $e)
+		{
+			$errorInfo=$e instanceof PDOException ? $e->errorInfo : null;
+			$message=$e->getMessage();
+			if(YDEBUG)
+				$message.='. The SQL statement executed was: '.$this->getText().$par;
+			throw new YDbException('YDbCommand failed to execute the SQL statement:'.$message,(int)$e->getCode(),$errorInfo);
+		}
+	}
+}
+
+class YDbException extends Exception
+{
+	/**
+	 * @var mixed the error info provided by a PDO exception. This is the same as returned
+	 * by {@link http://www.php.net/manual/en/pdo.errorinfo.php PDO::errorInfo}.
+	 * @since 1.1.4
+	 */
+	public $errorInfo;
+
+	/**
+	 * Constructor.
+	 * @param string $message PDO error message
+	 * @param integer $code PDO error code
+	 * @param mixed $errorInfo PDO error info
+	 */
+	public function __construct($message,$code=0,$errorInfo=null)
+	{
+		$this->errorInfo=$errorInfo;
+		parent::__construct($message,$code);
 	}
 }
