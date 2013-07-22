@@ -9,6 +9,7 @@ class YDatabase{
 				'username' => MYSQL_USERNAME,
 				'password' => MYSQL_PASSWORD,
 			),true);
+			// self::$dbh->openCache(600);//开启memcache并设置缓存时间
 		}else{//程序中不能设定两次
 			yDie();
 		}
@@ -36,7 +37,7 @@ final class YDatabaseAccess{
 	}
 	public static function create($param){
 		$connection=new YDbConnection($param["connectionString"],$param["username"],$param["password"]);
-		return new YDatabaseAccess($connection);
+		return new self($connection);
 	}
 	public function execute($sql,$params=array()){
 		if(YDEBUG && !$this->transaction){
@@ -86,6 +87,10 @@ final class YDatabaseAccess{
 	public function checkTransaction(){
 		return $this->transaction?true:false;
 	}
+
+	public function openCache($duration){
+		return $this->connection->cache($duration);
+	}
 }
 
 final class YDbConnection
@@ -93,10 +98,9 @@ final class YDbConnection
 	public $connectionString;
 	public $username='';
 	public $password='';
-	// public $queryCachingDuration=0;
-	// public $queryCachingDependency;
-	// public $queryCachingCount=0;
-	// public $queryCacheID='cache';
+	public $queryCachingDuration=0;
+	public $queryCachingCompressed=false;
+	public $queryCachingCount=0;
 	public $autoConnect=true;
 	public $charset;
 	public $emulatePrepare=true;
@@ -139,13 +143,13 @@ final class YDbConnection
 		if($this->autoConnect)
 			$this->setActive(true);
 	}
-	// public function cache($duration, $dependency=null, $queryCount=1)
-	// {
-	// 	$this->queryCachingDuration=$duration;
-	// 	$this->queryCachingDependency=$dependency;
-	// 	$this->queryCachingCount=$queryCount;
-	// 	return $this;
-	// }
+	public function cache($duration, $Compressed=false, $queryCount=1)
+	{
+		$this->queryCachingDuration=$duration;
+		$this->queryCachingCompressed=$Compressed;
+		$this->queryCachingCount=$queryCount;
+		return $this;
+	}
 	public function getActive()
 	{
 		return $this->_active;
@@ -478,19 +482,18 @@ class YDbCommand
 		}
 		else
 			$par='';
-		// if($this->_connection->queryCachingCount>0 && $method!==''
-		// 		&& $this->_connection->queryCachingDuration>0
-		// 		&& $this->_connection->queryCacheID!==false
-		// 		&& ($cache=Yii::app()->getComponent($this->_connection->queryCacheID))!==null)
-		// {
-		// 	$this->_connection->queryCachingCount--;
-		// 	$cacheKey='yi:dbquery'.$this->_connection->connectionString.':'.$this->_connection->username;
-		// 	$cacheKey.=':'.$this->getText().':'.serialize(array_merge($this->_paramLog,$params));
-		// 	if(($result=$cache->get($cacheKey))!==false)
-		// 	{
-		// 		return $result[0];
-		// 	}
-		// }
+		if($this->_connection->queryCachingCount>0 && $method!==''
+				&& $this->_connection->queryCachingDuration>0
+				&& $cache = YCache::getInstance($this->_connection->queryCachingDuration))
+		{
+			$this->_connection->queryCachingCount--;
+			$cacheKey='yi:dbquery'.$this->_connection->connectionString.':'.$this->_connection->username;
+			$cacheKey.=':'.$this->getText().':'.serialize(array_merge($this->_paramLog,$params));
+			if(($result=$cache->get($cacheKey))!==false)
+			{
+				return $result[0];
+			}
+		}
 		try
 		{
 			$this->prepare();
@@ -502,8 +505,8 @@ class YDbCommand
 			call_user_func_array(array($this->_statement, 'setFetchMode'), $mode);
 			$result=$this->_statement->$method();
 			$this->_statement->closeCursor();
-			// if(isset($cache,$cacheKey))
-			// 	$cache->set($cacheKey, array($result), $this->_connection->queryCachingDuration, $this->_connection->queryCachingDependency);
+			if(isset($cache,$cacheKey))
+				$cache->set($cacheKey, array($result), $this->_connection->queryCachingCompressed, $this->_connection->queryCachingDuration);
 			return $result;
 		}
 		catch(Exception $e)
@@ -536,5 +539,75 @@ class YDbException extends Exception
 	{
 		$this->errorInfo=$errorInfo;
 		parent::__construct($message,$code);
+	}
+}
+
+class YCache
+{
+	static private $_single=null;
+	private $_connection;
+	public $_expire;
+	private $_min_saving = 0.2;//自动压缩比率
+	private $_threshold = 20000;//自动压缩上限
+
+	public static function getInstance($expire=600){
+		if(self::$_single instanceof self){
+			return self::$_single;
+		}
+		return new self($expire);
+	}
+
+	private function __construct($expire){
+		$this->_connection = new Memcache;
+	    $this->_connection->connect(MEMCACHE_SERVER, MEMCACHE_PORT) or yDie("Could not connect");
+	    $this->_connection->setCompressThreshold($this->threshold, $this->min_saving) or yDie("Could not setCompressThreshold");
+		$this->_expire = $expire;
+
+		self::$_single = $this;
+	}
+
+	public function close(){
+	    $this->_connection->close() or yDie("Could not close");
+	    self::$_single = null;
+		return ture;
+	}
+
+	public function get($key){
+		return $this->_connection->get($key);
+	}
+
+	public function add($key,$val,$compressed=false,$expire=null){
+		$expire ==null and $expire = $this->_expire;
+		return $this->_connection->add($key,$val,$compressed,$expire);
+	}
+
+	public function set($key,$val,$compressed=false,$expire=null){
+		$expire ==null and $expire = $this->_expire;
+		return $this->_connection->set($key,$val,$compressed,$expire);
+	}
+
+	public function replace($key,$val,$compressed=false,$expire=null){
+		$expire ==null and $expire = $this->_expire;
+		return $this->_connection->replace($key,$val,$compressed,$expire);
+	}
+
+	public function decrement($key,$val){
+		return $this->_connection->decrement($key,$val);
+	}
+
+	public function increment($key,$val){
+		return $this->_connection->increment($key,$val);
+	}
+
+	public function delete($key,$timeout=0){
+		return $this->_connection->delete($key,$timeout);
+	}
+
+	public function flush(){
+		return $this->_connection->flush();
+	}
+
+	public function getStats(){
+		return $this->_connection->getStats();
 	}
 }
