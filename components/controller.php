@@ -7,7 +7,7 @@ class Controller{
     }
 
     public function init(){
-        YDatabase::set_db();
+        YDatabase::setDb();
     }
 
 

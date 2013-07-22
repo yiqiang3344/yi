@@ -2,7 +2,7 @@
 class YDatabase{
 	private static $dbh;
 	private static $dbah;
-	public static function set_db(){
+	public static function setDb(){
 		if(!self::$dbh){
 			self::$dbh=YDatabaseAccess::create(array(
 				'connectionString' => 'mysql:host=' . MYSQL_SERVER . ';port=' . MYSQL_SERVER_PORT . ';dbname=' . MYSQL_DATABASE . ';charset=utf8',
@@ -14,10 +14,10 @@ class YDatabase{
 			yDie();
 		}
 	}
-	public static function get_dbh(){
+	public static function getDbh(){
 		return self::$dbh;
 	}
-	public static function get_dbah(){
+	public static function getDbah(){
 		if(!self::$dbah){
 			self::$dbah=YDatabaseAccess::create(array(
 				'connectionString' => 'mysql:host=' . MYSQL_SERVER . ';port=' . MYSQL_SERVER_PORT . ';charset=utf8',
@@ -48,16 +48,16 @@ final class YDatabaseAccess{
 	public function select($sql,$params=array()){
 		return 	$this->connection->createCommand($sql)->queryAll(true,$params);
 	}
-	public function select_row($sql,$params=array()){
+	public function selectRow($sql,$params=array()){
 		return 	$this->connection->createCommand($sql)->queryRow(true,$params);
 	}
-	public function select_col($sql,$params=array()){
+	public function selectCol($sql,$params=array()){
 		return 	$this->connection->createCommand($sql)->queryColumn($params);
 	}
-	public function select_one($sql,$params=array()){
+	public function selectOne($sql,$params=array()){
 		return 	$this->connection->createCommand($sql)->queryScalar($params);
 	}
-	public function last_insert_id(){
+	public function lastInsertId(){
 		return $this->connection->getLastInsertID();
 	}	
 	public function begin(){

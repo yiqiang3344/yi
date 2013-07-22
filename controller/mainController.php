@@ -3,8 +3,6 @@ class MainController extends Controller{
 
     public function actionMain(){
         $info = MUser::getBlog();
-        print_r($info);
-        die;
         //end
         $view = 'main';
         $bind = array();
