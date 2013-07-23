@@ -25,7 +25,7 @@ loadByUrls($preload_list);
 		控制器方法名按驼峰式命名方法，可访问的方法加action前缀
 */
 if(!isset($_SERVER['PATH_INFO'])){
-	$_SERVER['PATH_INFO'] = '/main/main';//默认访问
+	errorView();
 }
 
 $path = explode('/', strtolower($_SERVER['PATH_INFO']));//路径全小写处理
@@ -35,16 +35,18 @@ if(isset($path[1]) && !empty($path[1])){//防止多余/时报错
 	$C_name = ucwords($path[1]).'Controller';
 	$C = new $C_name;//首字母大写
 }else{
-	require(YROOT.'/controller/mainController.php');
-	$C = new MainController;
+	errorView();
 }
 
 if(isset($path[2]) && !empty($path[2])){
 	$C->{'action'.ucwords($path[2])}();//方法首字母都要大写
 }else{
-	$C->actionIndex();
+	errorView('main/index');
 }
 
+function errorView($url='main/main'){
+	header('Location: '.SERVER_URI.$url); //默认访问
+}
 
 
 function loadByUrls($urls){

@@ -1,4 +1,6 @@
 <?php
+define('SERVER_URI', 'http://yjq.com/yjq_git/index.php/');
+
 
 define('MYSQL_SERVER', 'localhost');
 define('MYSQL_DATABASE', 'yjq');

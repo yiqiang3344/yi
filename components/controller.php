@@ -16,7 +16,7 @@ class Controller{
 		return strtolower($arr[0]);
 	}
 
-    public function render($view,$bind,$use_template){
+    public function render($view,$bind,$use_template=false){
         if(is_array($view)){
             echo json_encode($view);
             return;
