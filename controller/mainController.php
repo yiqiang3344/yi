@@ -30,4 +30,15 @@ class MainController extends Controller{
         $bind['info'] = $info;
         $this->render($view,$bind);
     }
+
+    public function actionMustache(){
+        $list = array(1,2,3,4);
+        $title = '操作成功';
+        //end
+        $view = 'mustache';
+        $bind = array();
+        $bind['title'] = $title;
+        $bind['list'] = $list;
+        $this->render($view,$bind,true);
+    }
 }

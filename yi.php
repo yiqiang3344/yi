@@ -7,14 +7,15 @@
 define('YROOT',getcwd());
 define('YDEBUG',true);
 
-$preload_dirs = array(
+$preload_list = array(
 	YROOT.'/config/',
 	YROOT.'/components/',
 	YROOT.'/model/',
+	YROOT.'/widget/mustache/Autoloader.php'
 );
 
 //预加载文件
-loadByUrls($preload_dirs);
+loadByUrls($preload_list);
 
 //路由设置
 /*
@@ -46,17 +47,19 @@ if(isset($path[2]) && !empty($path[2])){
 
 
 
-function loadByUrls($dirs){
-	foreach($dirs as $dir){
-		if (is_dir($dir)) {
-		    if ($dh = opendir($dir)) {
+function loadByUrls($urls){
+	foreach($urls as $url){
+		if (is_dir($url)) {
+		    if ($dh = opendir($url)) {
 		        while (($file = readdir($dh)) !== false) {
-		        	if(filetype($dir.$file) !== 'dir'){
-						require($dir.$file);
+		        	if(filetype($url.$file) !== 'dir'){
+						require($url.$file);
 		        	}
 		        }
 		        closedir($dh);
 		    }
+		}elseif(is_file($url)){
+			require($url);
 		}
 	}
 }
