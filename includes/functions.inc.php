@@ -1,7 +1,5 @@
 <?php
 function setMainConfig(){
-	define('SERVER_URI', 'http://yjq.com/yjq/index.php/');
-
 	define('MYSQL_SERVER', 'localhost');
 	define('MYSQL_DATABASE', 'yjq');
 	define('MYSQL_SERVER_PORT', '3306');

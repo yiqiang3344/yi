@@ -1,8 +1,4 @@
 <?php
-function errorView($url='main/main'){
-	header('Location: '.SERVER_URI.$url); //默认访问
-}
-
 class YException extends Exception
 {
 	public $errorInfo;
@@ -63,9 +59,9 @@ final class YConfig
 
 function YDie($m=''){
 	if(YDEBUG){
-		YLog::errorlog($m,true,false);
+		YError::errorlog($m,true,false);
 	}else{
-		YLog::errorlog($m);
+		YError::errorlog($m);
 		die($m);
 	}
 }
@@ -78,8 +74,13 @@ function YGetDbh(){
 	return YDatabase::YGetDbh();
 }
 
-final class YLog
+final class YError
 {
+	public static function errorview($url=null){
+		$url===null and $url = YConfig::get('main','errorview');
+		header('Location: //'.SERVER_URI.$url); //默认访问
+	}
+
 	public static function errorlog($m,$print=false,$log=true) {
 		$s = 'record_time:' . date('Y-m-d H:i:s', getTime()) . '\n';
 		$s.='MESSAGE:' . $m . '\n';

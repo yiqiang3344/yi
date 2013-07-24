@@ -17,8 +17,12 @@ AutoLoader::register(YConfig::get('main','reloadDirs'));
 		控制器类名对应其文件名，但首字母必须大写
 		控制器方法名按驼峰式命名方法，可访问的方法加action前缀
 */
+
+//路由
+define('SERVER_URI', $_SERVER['SERVER_NAME'].$_SERVER['SCRIPT_NAME']);
+
 if(!isset($_SERVER['PATH_INFO'])){
-	errorView();
+	YError::errorview();
 }
 
 $path = explode('/', strtolower($_SERVER['PATH_INFO']));//路径全小写处理
@@ -28,11 +32,11 @@ if(isset($path[1]) && !empty($path[1])){//防止多余/时报错
 	$C_name = ucwords($path[1]).'Controller';
 	$C = new $C_name;//首字母大写
 }else{
-	errorView();
+	YError::errorview();
 }
 
 if(isset($path[2]) && !empty($path[2])){
 	$C->{'action'.ucwords($path[2])}();//方法首字母都要大写
 }else{
-	errorView('main/index');
+	YError::errorview('/main/index');
 }

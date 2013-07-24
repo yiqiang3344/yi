@@ -1,5 +1,6 @@
 <?php
 return array(
+	'errorview'=>'/main/main',
 	'reloadDirs'=>array(
 		YROOT.'/components/',
 		YROOT.'/model/',
