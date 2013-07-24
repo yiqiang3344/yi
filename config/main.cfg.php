@@ -1,12 +1,17 @@
 <?php
-define('SERVER_URI', 'http://yjq.com/yjq_git/index.php/');
-
-
-define('MYSQL_SERVER', 'localhost');
-define('MYSQL_DATABASE', 'yjq');
-define('MYSQL_SERVER_PORT', '3306');
-define('MYSQL_USERNAME', 'root');
-define('MYSQL_PASSWORD', 'yjq');
-
-define('MEMCACHE_SERVER', '192.168.3.33');
-define('MEMCACHE_PORT', '11211');
+return array(
+	'reloadDirs'=>array(
+		YROOT.'/components/',
+		YROOT.'/model/',
+	),
+	'db'=>array(
+		'connectionString' => 'mysql:host=' . MYSQL_SERVER . ';port=' . MYSQL_SERVER_PORT . ';charset=utf8;',
+		'dbname' => MYSQL_DATABASE,
+		'username' => MYSQL_USERNAME,
+		'password' => MYSQL_PASSWORD,
+	),
+	'cache'=>array(
+		'server' => MEMCACHE_SERVER,
+		'port' => MEMCACHE_PORT,
+	),
+);

@@ -3,28 +3,20 @@ class YDatabase{
 	private static $dbh;
 	private static $dbah;
 	public static function setDb(){
+		$dbCfg = YConfig::get('main','db');
+		if(!self::$dbah){
+			self::$dbah=YDatabaseAccess::create($dbCfg,true);
+		}
 		if(!self::$dbh){
-			self::$dbh=YDatabaseAccess::create(array(
-				'connectionString' => 'mysql:host=' . MYSQL_SERVER . ';port=' . MYSQL_SERVER_PORT . ';dbname=' . MYSQL_DATABASE . ';charset=utf8',
-				'username' => MYSQL_USERNAME,
-				'password' => MYSQL_PASSWORD,
-			),true);
+			$dbCfg['connectionString'] .= 'dbname='.$dbCfg['dbname'].';';
+			self::$dbh=YDatabaseAccess::create($dbCfg,true);
 			// self::$dbh->openCache(600);//开启memcache并设置缓存时间
-		}else{//程序中不能设定两次
-			yDie();
 		}
 	}
-	public static function getDbh(){
+	public static function YGetDbh(){
 		return self::$dbh;
 	}
-	public static function getDbah(){
-		if(!self::$dbah){
-			self::$dbah=YDatabaseAccess::create(array(
-				'connectionString' => 'mysql:host=' . MYSQL_SERVER . ';port=' . MYSQL_SERVER_PORT . ';charset=utf8',
-				'username' => MYSQL_USERNAME,
-				'password' => MYSQL_PASSWORD,
-			),true);
-		}
+	public static function YGetDbah(){
 		return self::$dbah;
 	}
 }
@@ -41,7 +33,7 @@ final class YDatabaseAccess{
 	}
 	public function execute($sql,$params=array()){
 		if(YDEBUG && !$this->transaction){
-			yDie();
+			YDie();
 		}
 		return 	$this->connection->createCommand($sql)->execute($params);
 	}
@@ -62,14 +54,14 @@ final class YDatabaseAccess{
 	}	
 	public function begin(){
 		if($this->transaction){
-			yDie();
+			YDie();
 		}
 		$this->transaction=$this->connection->beginTransaction();
 		return true;
 	}
 	public function commit(){
 		if(!$this->transaction){
-			yDie();
+			YDie();
 		}
 		$this->transaction->commit();
 		$this->transaction=null;
@@ -77,7 +69,7 @@ final class YDatabaseAccess{
 	}
 	public function rollback(){
 		if(!$this->transaction){
-			yDie();
+			YDie();
 		}
 		$this->transaction->rollBack();
 		$this->transaction=null;
@@ -558,16 +550,17 @@ class YCache
 	}
 
 	private function __construct($expire){
+		$cacheCfg = YConfig::get('main','cache');
 		$this->_connection = new Memcache;
-	    $this->_connection->connect(MEMCACHE_SERVER, MEMCACHE_PORT) or yDie("Could not connect");
-	    $this->_connection->setCompressThreshold($this->threshold, $this->min_saving) or yDie("Could not setCompressThreshold");
+	    $this->_connection->connect($cacheCfg['server'], $cacheCfg['port']) or YDie("Could not connect");
+	    $this->_connection->setCompressThreshold($this->threshold, $this->min_saving) or YDie("Could not setCompressThreshold");
 		$this->_expire = $expire;
 
 		self::$_single = $this;
 	}
 
 	public function close(){
-	    $this->_connection->close() or yDie("Could not close");
+	    $this->_connection->close() or YDie("Could not close");
 	    self::$_single = null;
 		return ture;
 	}

@@ -1,6 +1,6 @@
 <?php
 class Controller{
-    public $layout = 'main';
+    public $layout = '//layouts/main';
 
     public function __construct(){
         $this->init();
@@ -34,7 +34,7 @@ class Controller{
             $content=ob_get_contents();
             ob_end_clean();
         }
-        require(YROOT.'/view/layout/'.$this->layout.'.php');
+        require(YROOT.'/view'.$this->layout.'.php');
         unset($content);    
     }
 
