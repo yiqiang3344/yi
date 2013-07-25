@@ -23,18 +23,17 @@ class Controller{
         }
 
         if($use_template){
-            Mustache_Autoloader::register();
             $m = new Mustache_Engine;
-            $content = $m->render(file_get_contents(YROOT.'/view/'.$this->getControllerName().'/'.$view.'.php'), $bind); 
+            $content = $m->render(file_get_contents(Yi::app()->baseDir.'/view/'.$this->getControllerName().'/'.$view.'.php'), $bind); 
         }else{
             ob_start();
             extract($bind,EXTR_OVERWRITE);
             unset($bind);
-            require(YROOT.'/view/'.$this->getControllerName().'/'.$view.'.php');
+            require(Yi::app()->baseDir.'/view/'.$this->getControllerName().'/'.$view.'.php');
             $content=ob_get_contents();
             ob_end_clean();
         }
-        require(YROOT.'/view'.$this->layout.'.php');
+        require(Yi::app()->baseDir.'/view'.$this->layout.'.php');
         unset($content);    
     }
 

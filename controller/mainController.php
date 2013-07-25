@@ -32,6 +32,7 @@ class MainController extends Controller{
     }
 
     public function actionMustache(){
+        throw new YException('');
         $list = array(1,2,3,4);
         $title = '操作成功';
         //end
@@ -40,5 +41,20 @@ class MainController extends Controller{
         $bind['title'] = $title;
         $bind['list'] = $list;
         $this->render($view,$bind,true);
+    }
+
+    public function actionTest(){
+        if(isset($_GET['ip'])){
+            echo detectCity($_GET['ip']);
+        }
+        if(isset($_GET['pwd'])){
+            echo pwdStrength($_GET['pwd']);
+        }
+        if(isset($_GET['encrypt'])){
+            echo FUE($_GET['encrypt'],2);
+        }
+        if(isset($_GET['input'])){
+            echo sanitize($_GET['input']);
+        }
     }
 }

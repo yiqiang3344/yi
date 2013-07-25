@@ -3,11 +3,8 @@ class YDatabase{
 	private static $dbh;
 	private static $dbah;
 	public static function setDb(){
-		$dbCfg = YConfig::get('main','db');
-		if(!self::$dbah){
-			self::$dbah=YDatabaseAccess::create($dbCfg,true);
-		}
 		if(!self::$dbh){
+			$dbCfg = YConfig::get('main','db');
 			$dbCfg['connectionString'] .= 'dbname='.$dbCfg['dbname'].';';
 			self::$dbh=YDatabaseAccess::create($dbCfg,true);
 			// self::$dbh->openCache(600);//开启memcache并设置缓存时间
@@ -17,6 +14,9 @@ class YDatabase{
 		return self::$dbh;
 	}
 	public static function YGetDbah(){
+		if(!self::$dbah){
+			self::$dbah=YDatabaseAccess::create(YConfig::get('main','db'),true);
+		}
 		return self::$dbah;
 	}
 }

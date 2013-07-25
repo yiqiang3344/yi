@@ -2,5 +2,5 @@
 define('ROOT', getcwd());
 require_once(ROOT.'/includes/functions.inc.php');
 setMainConfig();
-require ROOT.'/yi.php';
+require ROOT.'/yi/yi.php';
 

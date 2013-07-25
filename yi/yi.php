@@ -3,13 +3,23 @@
 **yi框架
 * @author sidneyYi
 */
-define('YROOT',getcwd());
-define('YDEBUG',true);
+define('YROOT',dirname(__FILE__));
+defined('YDEBUG') or define('YDEBUG',true);
+
 
 require_once(YROOT.'/yibase.php');
+Yi::app()->baseDir = getcwd();
+Yi::app()->serverUri = $_SERVER['SERVER_NAME'].$_SERVER['SCRIPT_NAME'];
+
+//自定义错误处理
+set_error_handler('YError::errorHandle');
+set_exception_handler('YError::exceptionHandle');
 
 //预加载文件
-AutoLoader::register(YConfig::get('main','reloadDirs'));
+Yi::app()->config = YConfig::get('main','reloadDirs');
+Yi::app()->config[] = YROOT; 
+AutoLoader::register(Yi::app()->config);
+
 //路由设置
 /*
 	规则
@@ -19,24 +29,23 @@ AutoLoader::register(YConfig::get('main','reloadDirs'));
 */
 
 //路由
-define('SERVER_URI', $_SERVER['SERVER_NAME'].$_SERVER['SCRIPT_NAME']);
 
 if(!isset($_SERVER['PATH_INFO'])){
-	YError::errorview();
+	YError::gotoView();
 }
 
 $path = explode('/', strtolower($_SERVER['PATH_INFO']));//路径全小写处理
 
 if(isset($path[1]) && !empty($path[1])){//防止多余/时报错
-	require(YROOT.'/controller/'.$path[1].'Controller.php');
+	require(Yi::app()->baseDir.'/controller/'.$path[1].'Controller.php');
 	$C_name = ucwords($path[1]).'Controller';
 	$C = new $C_name;//首字母大写
 }else{
-	YError::errorview();
+	YError::gotoView();
 }
 
 if(isset($path[2]) && !empty($path[2])){
 	$C->{'action'.ucwords($path[2])}();//方法首字母都要大写
 }else{
-	YError::errorview('/main/index');
+	YError::gotoView('/main/index');
 }

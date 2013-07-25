@@ -1,9 +1,10 @@
 <?php
 return array(
-	'errorview'=>'/main/main',
+	'errorView'=>'/main/main',
 	'reloadDirs'=>array(
-		YROOT.'/components/',
-		YROOT.'/model/',
+		Yi::app()->baseDir.'/components',
+		Yi::app()->baseDir.'/model',
+		Yi::app()->baseDir.'/components/mustache',
 	),
 	'db'=>array(
 		'connectionString' => 'mysql:host=' . MYSQL_SERVER . ';port=' . MYSQL_SERVER_PORT . ';charset=utf8;',
